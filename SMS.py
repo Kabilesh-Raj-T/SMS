@@ -1,8 +1,4 @@
 import mysql.connector
-from tkinter import *
-from tkinter import messagebox
-from functools import partial
-
 
 class Database:
     def __init__(self):
@@ -24,21 +20,22 @@ class Database:
     def close(self):
         self.conn.close()
 
-class Product:
-    def __init__(self, db: Database):
+class ProductManager:
+    def __init__(self, db, cursor):
         self.db = db
+        self.cursor = cursor
 
     def view_all(self):
         print(f"{'ID':<10}{'NAME':<20}{'PRICE':<10}{'BRAND':<10}{'QTY':<10}{'SOLD':<10}")
-        self.db.execute("SELECT * FROM product_database")
-        for row in self.db.fetch_all():
+        self.cursor.execute("SELECT * FROM product_database")
+        for row in self.cursor.fetchall():
             print(f"{row[0]:<10}{row[1]:<20}{row[2]:<10}{row[4]:<10}{row[5]:<10}{row[6]:<10}")
 
     def add_product(self, product):
         query = """INSERT INTO product_database 
         (ID, NAME, SELLING_PRICE, COST_PRICE, BRAND, QUANTITY, ITEMS_SOLD)
         VALUES (%s, %s, %s, %s, %s, %s, %s)"""
-        self.db.execute(query, product)
+        self.cursor.execute(query, product)
         self.db.commit()
 
     def edit_product(self):
@@ -98,22 +95,19 @@ class Product:
     def make_purchase(self):
         customer_contact = input("Enter the contact number of the customer         | ")
 
-        # Check if customer exists
         self.cursor.execute("SELECT CONTACT_NUMBER FROM customer_database")
         existing_contacts = [row[0] for row in self.cursor.fetchall()]
-
         customer_exists = int(customer_contact) in existing_contacts
+
         if not customer_exists:
             customer_name = input("Enter the name of the customer                   | ")
             self.cursor.execute("SELECT MAX(ID) FROM customer_database")
             customer_id = self.cursor.fetchone()[0] or 0
             customer_id += 1
         else:
-            customer_id = None  # Will not be used
+            customer_id = None
 
-        product_ids = []
-        quantities = []
-        line_totals = []
+        product_ids, quantities, line_totals = [], [], []
         total_price = 0
 
         while True:
@@ -122,12 +116,8 @@ class Product:
                 break
 
             quantity = int(input("Enter the quantity of this purchased product     | "))
-            
-            # Update DB
-            update_qty_query = "UPDATE product_database SET QUANTITY = QUANTITY - %s WHERE ID = %s"
-            update_sold_query = "UPDATE product_database SET ITEMS_SOLD = ITEMS_SOLD + %s WHERE ID = %s"
-            self.cursor.execute(update_qty_query, (quantity, product_id))
-            self.cursor.execute(update_sold_query, (quantity, product_id))
+            self.cursor.execute("UPDATE product_database SET QUANTITY = QUANTITY - %s WHERE ID = %s", (quantity, product_id))
+            self.cursor.execute("UPDATE product_database SET ITEMS_SOLD = ITEMS_SOLD + %s WHERE ID = %s", (quantity, product_id))
             self.db.commit()
 
             self.cursor.execute("SELECT SELLING_PRICE FROM product_database WHERE ID = %s", (product_id,))
@@ -139,37 +129,29 @@ class Product:
             quantities.append(quantity)
             line_totals.append(line_total)
 
-        # Print receipt
         print("\n%-15s%-20s%-15s%-15s%-15s%-15s" % ('ID', 'NAME', 'BRAND', 'RATE', 'QUANTITY', 'AMOUNT'))
-        for i, product_id in enumerate(product_ids):
-            self.cursor.execute(
-                "SELECT ID, NAME, BRAND, SELLING_PRICE FROM product_database WHERE ID = %s", (product_id,))
+        for i, pid in enumerate(product_ids):
+            self.cursor.execute("SELECT ID, NAME, BRAND, SELLING_PRICE FROM product_database WHERE ID = %s", (pid,))
             product = self.cursor.fetchone()
-            print("%-15s%-20s%-15s%-15s%-15s%-15s" % (
-                product[0], product[1], product[2], product[3], quantities[i], line_totals[i]))
+            print("%-15s%-20s%-15s%-15s%-15s%-15s" % (product[0], product[1], product[2], product[3], quantities[i], line_totals[i]))
 
         print("\nTotal amount to be paid: ", total_price)
 
-        # Prepare purchase record
         purchase_record = ''.join([
             f"{pid} {self.get_product_name(pid)} {self.get_price(pid)} {qty} {amt}|"
             for pid, qty, amt in zip(product_ids, quantities, line_totals)
         ]) + str(total_price) + '|'
 
         if not customer_exists:
-            insert_customer = """
-                INSERT INTO customer_database (ID, NAME, CONTACT_NUMBER, PURCHASES)
-                VALUES (%s, %s, %s, %s)
-            """
-            self.cursor.execute(insert_customer, (customer_id, customer_name, customer_contact, purchase_record))
+            self.cursor.execute(
+                "INSERT INTO customer_database (ID, NAME, CONTACT_NUMBER, PURCHASES) VALUES (%s, %s, %s, %s)",
+                (customer_id, customer_name, customer_contact, purchase_record)
+            )
         else:
             self.cursor.execute("SELECT PURCHASES FROM customer_database WHERE CONTACT_NUMBER = %s", (customer_contact,))
             existing_purchases = self.cursor.fetchone()[0] or ''
             updated_purchases = purchase_record + existing_purchases
-            self.cursor.execute(
-                "UPDATE customer_database SET PURCHASES = %s WHERE CONTACT_NUMBER = %s",
-                (updated_purchases, customer_contact)
-            )
+            self.cursor.execute("UPDATE customer_database SET PURCHASES = %s WHERE CONTACT_NUMBER = %s", (updated_purchases, customer_contact))
 
         self.db.commit()
         print("Purchase recorded successfully.\n")
@@ -184,10 +166,8 @@ class Product:
 
     def search_product(self):
         product_id = input("Enter the ID of product to be searched : ")
-
         self.cursor.execute("SELECT ID FROM product_database")
         all_ids = [row[0] for row in self.cursor.fetchall()]
-        
         if product_id not in map(str, all_ids):
             print("There is no product data with this ID\n")
             return
@@ -197,7 +177,6 @@ class Product:
             (product_id,)
         )
         result = self.cursor.fetchone()
-
         if result:
             print("\n%-15s%-20s%-15s%-15s%-15s%-15s" %
                   ("ID", "NAME", "PRICE", "BRAND", "QUANTITY", "ITEMS SOLD"))
@@ -205,7 +184,7 @@ class Product:
                   (product_id, result[0], result[1], result[2], result[3], result[4]))
         else:
             print("No data found.\n")
-        
+
 class CustomerManager:
     def __init__(self, db, cursor):
         self.db = db
@@ -494,72 +473,163 @@ class StatManager:
             print("No products found.")
 
 db = Database()
-product_mgr = Product(db)
 cursor = db.cursor
+product_mgr = ProductManager(db.conn, cursor)
 customer_mgr = CustomerManager(db.conn, cursor)
 employee_mgr = EmployeeManager(db.conn, cursor)
 finance_mgr = FinanceManager(db.conn, cursor)
 stat_mgr = StatManager(db.conn, cursor)
 
-def run_ui():
-    root = Tk()
-    root.geometry("700x700")
-    root.title("Store Management System")
+class Menu:
+    def __init__(self, product_mgr, customer_mgr, employee_mgr, finance_mgr, stat_mgr):
+        self.product_mgr = product_mgr
+        self.customer_mgr = customer_mgr
+        self.employee_mgr = employee_mgr
+        self.finance_mgr = finance_mgr
+        self.stat_mgr = stat_mgr
 
-    Label(root, text="Store Management System", font=('Arial', 16, 'bold')).pack(pady=10)
+    def collect_product_data(self):
+        print("Enter Product Details:")
+        pid = input("ID: ")
+        name = input("Name: ")
+        price = float(input("Selling Price: "))
+        cost = float(input("Cost Price: "))
+        brand = input("Brand: ")
+        qty = int(input("Quantity: "))
+        sold = int(input("Items Sold: "))
+        return (pid, name, price, cost, brand, qty, sold)
 
-    def add_section(title):
-        Label(root, text=title, font=('Arial', 12, 'bold')).pack(pady=(20, 5))
+    def main_menu(self):
+        while True:
+            print("\n====== Store Management Console Menu ======")
+            print("1. Product Operations")
+            print("2. Customer Operations")
+            print("3. Employee Operations")
+            print("4. Finance & Stats")
+            print("0. Exit")
+            choice = input("Select an option: ")
 
-    def add_button(text, command):
-        Button(root, text=text, width=30, command=command, bg='#c1aeda').pack(pady=2)
+            if choice == "1":
+                self.product_menu()
+            elif choice == "2":
+                self.customer_menu()
+            elif choice == "3":
+                self.employee_menu()
+            elif choice == "4":
+                self.finance_menu()
+            elif choice == "0":
+                print("Exiting system.")
+                break
+            else:
+                print("Invalid choice. Try again.")
 
-    # PRODUCT
-    add_section("Product Operations")
-    add_button("View Products", product_mgr.view_all)
-    add_button("Add Product", lambda: product_mgr.add_product(collect_product_data()))
-    add_button("Edit Product", product_mgr.edit_product)
-    add_button("Delete Product", product_mgr.delete_product)
-    add_button("Search Product", product_mgr.search_product)
-    add_button("Purchase Product", product_mgr.make_purchase)
+    def product_menu(self):
+        while True:
+            print("\n-- Product Operations --")
+            print("1. View Products")
+            print("2. Add Product")
+            print("3. Edit Product")
+            print("4. Delete Product")
+            print("5. Search Product")
+            print("6. Purchase Product")
+            print("0. Back to Main Menu")
+            choice = input("Select an option: ")
 
-    # CUSTOMER
-    add_section("Customer Operations")
-    add_button("View Customers", customer_mgr.view_all_customers)
-    add_button("Add Customer", customer_mgr.add_customer)
-    add_button("Edit Customer", customer_mgr.edit_customer)
-    add_button("Delete Customer", customer_mgr.delete_customer)
-    add_button("Search Customer", customer_mgr.search_customer)
+            if choice == "1":
+                self.product_mgr.view_all()
+            elif choice == "2":
+                self.product_mgr.add_product(self.collect_product_data())
+            elif choice == "3":
+                self.product_mgr.edit_product()
+            elif choice == "4":
+                self.product_mgr.delete_product()
+            elif choice == "5":
+                self.product_mgr.search_product()
+            elif choice == "6":
+                self.product_mgr.make_purchase()
+            elif choice == "0":
+                break
+            else:
+                print("Invalid choice.")
 
-    # EMPLOYEE
-    add_section("Employee Operations")
-    add_button("View Employees", employee_mgr.view_all_employees)
-    add_button("Add Employee", employee_mgr.add_employee)
-    add_button("Edit Employee", employee_mgr.edit_employee)
-    add_button("Delete Employee", employee_mgr.delete_employee)
-    add_button("Search Employee", employee_mgr.search_employee)
+    def customer_menu(self):
+        while True:
+            print("\n-- Customer Operations --")
+            print("1. View Customers")
+            print("2. Add Customer")
+            print("3. Edit Customer")
+            print("4. Delete Customer")
+            print("5. Search Customer")
+            print("0. Back to Main Menu")
+            choice = input("Select an option: ")
 
-    # FINANCE
-    add_section("Finance & Stats")
-    add_button("Profit by Product", finance_mgr.profit_by_product)
-    add_button("Total Profit/Loss", finance_mgr.total_profit_or_loss)
-    add_button("Best Seller", stat_mgr.best_selling_product)
-    add_button("Most Profitable", stat_mgr.most_profitable_product)
-    add_button("Least Seller", stat_mgr.least_selling_product)
+            if choice == "1":
+                self.customer_mgr.view_all_customers()
+            elif choice == "2":
+                self.customer_mgr.add_customer()
+            elif choice == "3":
+                self.customer_mgr.edit_customer()
+            elif choice == "4":
+                self.customer_mgr.delete_customer()
+            elif choice == "5":
+                self.customer_mgr.search_customer()
+            elif choice == "0":
+                break
+            else:
+                print("Invalid choice.")
 
-    root.mainloop()
+    def employee_menu(self):
+        while True:
+            print("\n-- Employee Operations --")
+            print("1. View Employees")
+            print("2. Add Employee")
+            print("3. Edit Employee")
+            print("4. Delete Employee")
+            print("5. Search Employee")
+            print("0. Back to Main Menu")
+            choice = input("Select an option: ")
 
-def collect_product_data():
-    # Simple console-based input collector for now
-    print("Enter Product Details:")
-    pid = input("ID: ")
-    name = input("Name: ")
-    price = float(input("Selling Price: "))
-    cost = float(input("Cost Price: "))
-    brand = input("Brand: ")
-    qty = int(input("Quantity: "))
-    sold = int(input("Items Sold: "))
-    return (pid, name, price, cost, brand, qty, sold)
+            if choice == "1":
+                self.employee_mgr.view_all_employees()
+            elif choice == "2":
+                self.employee_mgr.add_employee()
+            elif choice == "3":
+                self.employee_mgr.edit_employee()
+            elif choice == "4":
+                self.employee_mgr.delete_employee()
+            elif choice == "5":
+                self.employee_mgr.search_employee()
+            elif choice == "0":
+                break
+            else:
+                print("Invalid choice.")
+
+    def finance_menu(self):
+        while True:
+            print("\n-- Finance & Stats --")
+            print("1. Profit by Product")
+            print("2. Total Profit/Loss")
+            print("3. Best Seller")
+            print("4. Most Profitable Product")
+            print("5. Least Seller")
+            print("0. Back to Main Menu")
+            choice = input("Select an option: ")
+
+            if choice == "1":
+                self.finance_mgr.profit_by_product()
+            elif choice == "2":
+                self.finance_mgr.total_profit_or_loss()
+            elif choice == "3":
+                self.stat_mgr.best_selling_product()
+            elif choice == "4":
+                self.stat_mgr.most_profitable_product()
+            elif choice == "5":
+                self.stat_mgr.least_selling_product()
+            elif choice == "0":
+                break
+            else:
+                print("Invalid choice.")
 
 if __name__ == "__main__":
-    run_ui()
+    menu = Menu(product_mgr, customer_mgr, employee_mgr, finance_mgr, stat_mgr)
+    menu.main_menu()
