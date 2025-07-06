@@ -1,0 +1,105 @@
+.finance-page {
+    padding: 20px;
+}
+
+.finance-page h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #333;
+}
+
+.finance-section {
+    background-color: #fff;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.finance-section h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    color: #007bff; /* Highlight section titles */
+}
+
+.total-profit-loss-display {
+    padding: 15px;
+    border-radius: 5px;
+    font-size: 1.2em;
+    text-align: center;
+    margin: 10px 0;
+}
+
+.total-profit-loss-display.profit {
+    background-color: #d4edda; /* Light green for profit */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb;
+}
+
+.total-profit-loss-display.loss {
+    background-color: #f8d7da; /* Light red for loss */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb;
+}
+.total-profit-loss-display.neutral {
+    background-color: #e2e3e5; /* Light grey for neutral */
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+
+.total-profit-loss-display .status-value {
+    font-weight: bold;
+    text-transform: capitalize;
+}
+
+.total-profit-loss-display .amount-value {
+    font-weight: bold;
+    font-size: 1.3em;
+}
+
+
+.finance-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.finance-table th,
+.finance-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.finance-table th {
+    background-color: #f0f8ff; /* Light blue for header */
+    font-weight: 600;
+    color: #333;
+}
+
+.finance-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.finance-table tbody tr.profit td:last-child { /* Style the profit/loss cell for profit */
+    color: green;
+    font-weight: bold;
+}
+
+.finance-table tbody tr.loss td:last-child { /* Style the profit/loss cell for loss */
+    color: red;
+    font-weight: bold;
+}
+
+.error-message {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
