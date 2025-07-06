@@ -1,0 +1,50 @@
+.employees-page {
+    padding: 20px;
+}
+
+.employees-page h1 {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.add-employee-link {
+    margin-bottom: 20px;
+    /* Relies on global .btn and .btn-primary applied in JSX */
+}
+
+.employees-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.employees-table th,
+.employees-table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.employees-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #333;
+}
+
+.employees-table tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.employees-table tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+.employee-actions .btn {
+    margin-right: 5px;
+    /* Relies on global .btn, .btn-sm, .btn-secondary, .btn-danger etc. */
+}
+
+/* .error-message is now global in App.css */
+/* General button styles .btn, .btn-primary, .btn-sm are now global in App.css */

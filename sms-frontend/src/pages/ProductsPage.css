@@ -1,0 +1,59 @@
+.products-page {
+    padding: 20px;
+}
+
+.products-page h1 {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Styling for the "Add New Product" link, now primarily using global button styles */
+.add-product-link {
+    margin-bottom: 20px;
+    /* Additional specific styles for add-product-link can go here if needed, */
+    /* otherwise it will rely on .btn and .btn-primary applied in JSX */
+}
+
+.products-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.products-table th,
+.products-table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.products-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #333;
+}
+
+.products-table tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.products-table tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+/* Scoped styling for action buttons within the table */
+.product-actions .btn { /* Applies to .btn elements *inside* .product-actions */
+    margin-right: 5px;
+    /* Other properties like padding, font-size will come from global .btn and .btn-sm */
+}
+
+/* Specific overrides for .btn-secondary, .btn-info, .btn-danger within .product-actions */
+/* are no longer needed here as global styles in App.css will apply. */
+/* If variations were needed (e.g., different padding only here), they could be added. */
+/* For example: */
+/* .product-actions .btn-custom-size { padding: 3px 8px; } */
+
+/* .error-message is now global in App.css */
+/* General button styles .btn, .btn-primary, .btn-sm are now global in App.css */
