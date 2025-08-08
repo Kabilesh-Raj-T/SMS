@@ -59,7 +59,6 @@ Navigate to the setup folder:
 
 cd setup
 ```bash
-Copy Code
 python mysql_installer.py
 ```
 
@@ -67,6 +66,5 @@ Step 2: Run the Application
 From the project root directory, run:
 
 ```bash
-Copy code
 python -m src.main
 ```
