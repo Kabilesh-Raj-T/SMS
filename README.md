@@ -1,2 +1,49 @@
-# SMS
-Supermarket Management System
+# Store Management System (Python + MySQL + Tkinter)
+
+A complete **Store Management System** built using **Python**, **MySQL**, and **Tkinter** for managing **products**, **customers**, **employees**, **sales**, **profits**, and **statistics**.  
+It provides a GUI-based interface for easy navigation and database operations.
+
+---
+
+## 🚀 Features
+
+### 🛒 Product Management
+- View product database
+- Add new products or update stock
+- Edit existing product details
+- Delete products
+- Search products by ID
+- Record purchases and update stock automatically
+
+### 👥 Customer Management
+- View customer database
+- Add new customers
+- Edit customer details
+- Delete customers
+- Search customers by ID
+- Maintain purchase history
+
+### 🧑‍💼 Employee Management
+- View employee database
+- Add employees
+- Edit employee details
+- Delete employees
+- Search employees by ID
+
+### 📊 Finance & Statistics
+- Calculate profit/loss for each product
+- Calculate total store profit/loss
+- Show best-selling products
+- Show most profitable products
+
+---
+
+## 🛠️ Tech Stack
+- **Python 3**
+- **MySQL** (Database)
+- **Tkinter** (GUI)
+- **mysql-connector-python** (Python-MySQL connection)
+
+---
+
+## 📂 Project Structure
