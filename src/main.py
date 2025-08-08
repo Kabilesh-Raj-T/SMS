@@ -1,9 +1,9 @@
-from src.database import Database
-from src.product import ProductManage
-from src.customer import CustomerManager
-from src.employee import EmployeeManager
-from src.fin_n_stats import FinanceManager
-from src.menu import Menu
+from .database import Database
+from .product import ProductManage
+from .customer import CustomerManager
+from .employee import EmployeeManager
+from .fin_n_stats import FinanceManager
+from .menu import Menu
 
 if __name__ == "__main__":
     db = Database()
