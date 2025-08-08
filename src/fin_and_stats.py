@@ -7,14 +7,17 @@ class FinanceManager:
         print("%-15s%-20s%-15s%-15s%-15s" %
               ("ID", "NAME", "SELLING PRICE", "COST PRICE", "PROFIT/LOSS"))
 
-        self.cursor.execute("SELECT ID, NAME, SELLING_PRICE, COST_PRICE, QUANTITY, ITEMS_SOLD FROM product_database")
+        self.cursor.execute("""
+            SELECT ID, NAME, SELLING_PRICE, COST_PRICE, QUANTITY, ITEMS_SOLD,
+                (SELLING_PRICE * ITEMS_SOLD) - ((QUANTITY + ITEMS_SOLD) * COST_PRICE) AS PROFIT
+            FROM product_database
+            ORDER BY PROFIT DESC
+        """)
+
         for row in self.cursor.fetchall():
-            product_id, name, selling_price, cost_price, quantity, items_sold = row
-            revenue = selling_price * items_sold
-            cost = (quantity + items_sold) * cost_price
-            profit_loss = revenue - cost
+            product_id, name, selling_price, cost_price, quantity, items_sold, profit_loss = row
             print("%-15s%-20s%-15.2f%-15.2f%-15.2f" %
-                  (product_id, name, selling_price, cost_price, profit_loss))
+                (product_id, name, selling_price, cost_price, profit_loss))
 
     def total_profit_or_loss(self):
         self.cursor.execute("SELECT SELLING_PRICE, COST_PRICE, QUANTITY, ITEMS_SOLD FROM product_database")

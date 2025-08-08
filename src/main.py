@@ -1,8 +1,8 @@
 from .database import Database
-from .product import ProductManage
+from .product import ProductManager
 from .customer import CustomerManager
 from .employee import EmployeeManager
-from .fin_n_stats import FinanceManager
+from .fin_and_stats import FinanceManager, StatManager
 from .menu import Menu
 
 if __name__ == "__main__":

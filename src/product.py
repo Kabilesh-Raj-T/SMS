@@ -81,7 +81,7 @@ class ProductManager:
             customer_name = input("Enter the name of the customer                   | ")
             self.cursor.execute("SELECT MAX(ID) FROM customer_database")
             customer_id = self.cursor.fetchone()[0] or 0
-            customer_id += 1
+            customer_id = int(customer_id)+ 1
         else:
             customer_id = None
 
