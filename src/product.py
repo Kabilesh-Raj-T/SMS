@@ -1,3 +1,4 @@
+from datetime import date
 class ProductManager:
     def __init__(self, db, cursor):
         self.db = db
@@ -89,23 +90,35 @@ class ProductManager:
         total_price = 0
 
         while True:
-            product_id = input("Enter the ID of the Product purchased            | ")
+            product_id = input("Enter the ID of the Product purchased | ").strip()
             if not product_id:
                 break
 
-            quantity = int(input("Enter the quantity of this purchased product     | "))
+            self.cursor.execute("SELECT SELLING_PRICE FROM product_database WHERE BINARY ID = %s", (product_id,))
+            result = self.cursor.fetchone()
+            if not result:
+                print(f"Product with ID {product_id} not found. Purchase aborted for this item.")
+                continue
+
+            quantity = int(input("Enter the quantity of this purchased product | "))
+
+            selling_price = result[0]
+
+            self.cursor.execute(
+                "INSERT INTO sales_history (product_id, quantity, sale_date) VALUES (%s, %s, %s)",
+                (product_id, quantity, date.today())
+            )
             self.cursor.execute("UPDATE product_database SET QUANTITY = QUANTITY - %s WHERE ID = %s", (quantity, product_id))
             self.cursor.execute("UPDATE product_database SET ITEMS_SOLD = ITEMS_SOLD + %s WHERE ID = %s", (quantity, product_id))
             self.db.commit()
 
-            self.cursor.execute("SELECT SELLING_PRICE FROM product_database WHERE ID = %s", (product_id,))
-            selling_price = self.cursor.fetchone()[0]
             line_total = selling_price * quantity
             total_price += line_total
 
             product_ids.append(product_id)
             quantities.append(quantity)
             line_totals.append(line_total)
+
 
         print("\n%-15s%-20s%-15s%-15s%-15s%-15s" % ('ID', 'NAME', 'BRAND', 'RATE', 'QUANTITY', 'AMOUNT'))
         for i, pid in enumerate(product_ids):
