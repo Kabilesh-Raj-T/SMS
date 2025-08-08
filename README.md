@@ -1,7 +1,7 @@
-# Store Management System (Python + MySQL + Tkinter)
+# Store Management System (Python + MySQL)
 
-A complete **Store Management System** built using **Python**, **MySQL**, and **Tkinter** for managing **products**, **customers**, **employees**, **sales**, **profits**, and **statistics**.  
-It provides a GUI-based interface for easy navigation and database operations.
+A complete **Store Management System** built using **Python**, **MySQL**, for managing **products**, **customers**, **employees**, **sales**, **profits**, and **statistics**.  
+
 
 ---
 
@@ -41,9 +41,15 @@ It provides a GUI-based interface for easy navigation and database operations.
 ## 🛠️ Tech Stack
 - **Python 3**
 - **MySQL** (Database)
-- **Tkinter** (GUI)
 - **mysql-connector-python** (Python-MySQL connection)
 
 ---
 
 ## 📂 Project Structure
+## ⚙️ Setup & Installation
+
+### 1️⃣ Install Requirements
+Make sure you have **Python 3** and **MySQL** installed.  
+Then install the required Python package:
+```bash
+pip install mysql-connector-python
