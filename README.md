@@ -53,3 +53,33 @@ Make sure you have **Python 3** and **MySQL** installed.
 Then install the required Python package:
 ```bash
 pip install mysql-connector-python
+
+Step 1: Create the Database
+Navigate to the setup folder:
+
+bash
+Copy code
+cd setup
+Log in to MySQL:
+
+bash
+Copy code
+mysql -u root -p
+Run the SQL file to create the database and tables:
+
+sql
+Copy code
+source database_setup.sql;
+(Replace database_setup.sql with the actual file name in the setup folder)
+
+Exit MySQL:
+
+sql
+Copy code
+exit;
+Step 2: Run the Application
+From the project root directory, run:
+
+bash
+Copy code
+python -m src.main
