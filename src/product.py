@@ -40,7 +40,8 @@ class ProductManager:
                 'name': 'NAME',
                 'brand': 'BRAND',
                 'quantity': 'QUANTITY',
-                'id': 'ID'
+                'id': 'ID',
+                "mrp":"MRP"
             }
 
             field = input("Enter the field to be edited             | ").strip().lower()
@@ -67,6 +68,12 @@ class ProductManager:
 
     def delete_product(self):
         product_id = input("Enter the Product ID to be deleted : ")
+        self.cursor.execute("SELECT ID FROM product_database")
+        existing_ids = [row[0] for row in self.cursor.fetchall()]
+
+        if product_id not in existing_ids:
+            print("There is no product with this ID")
+            return
         self.cursor.execute("DELETE FROM product_database WHERE ID = %s", (product_id,))
         self.db.commit()
         print("Product Deleted")
