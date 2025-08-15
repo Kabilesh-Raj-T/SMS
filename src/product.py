@@ -1,3 +1,5 @@
+# product.py
+
 from datetime import date, datetime
 
 def sanitize(value):
@@ -5,10 +7,11 @@ def sanitize(value):
     return str(value).strip() if value is not None else ""
 
 class ProductManager:
-    def __init__(self, db, dynamic_price, cursor):
+    def __init__(self, db, dynamic_price, customer_mgr):
         self.db = db
+        self.cursor = db.cursor
         self.dynamic_price = dynamic_price
-        self.cursor = cursor
+        self.customer_mgr = customer_mgr # Needed for adding customers during purchase
 
     def view_all(self):
         headers = f"{'ID':<10}{'NAME':<20}{'MRP':<10}{'SELLING_PRICE':<15}{'COST_PRICE':<15}{'BRAND':<15}{'QUANTITY':<10}{'ITEMS_SOLD':<12}{'EXPIRY_DATE':<12}"
@@ -24,12 +27,21 @@ class ProductManager:
         if self.cursor.fetchone():
             print(f"Product with ID {product_id} already exists.")
             return
-        query = """INSERT INTO product_database 
-        (ID, NAME, MRP, COST_PRICE, BRAND, QUANTITY, ITEMS_SOLD, EXPIRY_DATE)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
-        self.cursor.execute(query, product)
+
+        query = """INSERT INTO product_database
+        (ID, NAME, MRP, COST_PRICE, BRAND, QUANTITY, ITEMS_SOLD, EXPIRY_DATE, SELLING_PRICE)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+        # Set initial selling price to MRP, will be updated by dynamic price
+        initial_product_data = product + (product[2],)
+        self.cursor.execute(query, initial_product_data)
         self.db.commit()
         print("Product added successfully.")
+
+        # Now, calculate and set the dynamic price
+        self.update_single_product_price(product_id)
+
+
+    def update_single_product_price(self, product_id):
         dynamic_price = self.dynamic_price.get_dynamic_price(product_id)
         if dynamic_price is not None:
             update_query = "UPDATE product_database SET SELLING_PRICE = %s WHERE ID = %s"
@@ -41,202 +53,134 @@ class ProductManager:
 
     def edit_product(self):
         product_id = input("Enter the ID of the product to be edited | ").strip()
-
-        self.cursor.execute("SELECT ID FROM product_database")
-        existing_ids = [str(row[0]) for row in self.cursor.fetchall()]
-
-        if product_id not in existing_ids:
-            print("There is no product with this ID")
-            return
-
-        self.cursor.execute(
-            "SELECT ID, NAME, SELLING_PRICE, COST_PRICE, BRAND, QUANTITY, ITEMS_SOLD, EXPIRY_DATE "
-            "FROM product_database WHERE ID = %s", (product_id,)
-        )
+        self.cursor.execute("SELECT * FROM product_database WHERE ID = %s", (product_id,))
         product = self.cursor.fetchone()
         if not product:
-            print("No data found.")
+            print("There is no product with this ID.")
             return
 
-        print("\n%-15s%-20s%-15s%-15s%-15s%-15s%-15s%-15s" %
-              ("ID", "NAME", "SELLING PRICE", "COST PRICE", "BRAND", "QUANTITY", "ITEMS SOLD", "EXPIRY DATE"))
-
-        expiry_display = product[7].strftime('%Y-%m-%d') if isinstance(product[7], (datetime, date)) else (str(product[7]) if product[7] else 'N/A')
-        sell_price_display = f"{product[2]:.2f}" if isinstance(product[2], (int, float)) else str(product[2])
-        cost_price_display = f"{product[3]:.2f}" if isinstance(product[3], (int, float)) else str(product[3])
-        print("%-15s%-20s%-15s%-15s%-15s%-15s%-15s%-15s" % (
-            product[0], product[1], sell_price_display, cost_price_display, product[4], product[5], product[6], expiry_display
-        ))
-
+        print(f"\nEditing Product ID: {product[0]}, Name: {product[1]}")
         field_map = {
-            'items sold': 'ITEMS_SOLD',
-            'selling price': 'SELLING_PRICE',
-            'cost price': 'COST_PRICE',
-            'name': 'NAME',
-            'brand': 'BRAND',
-            'quantity': 'QUANTITY',
-            'id': 'ID',
-            'mrp': 'MRP',
-            'expiry date': 'EXPIRY_DATE'
+            'name': ('NAME', str), 'mrp': ('MRP', float), 'cost price': ('COST_PRICE', float),
+            'brand': ('BRAND', str), 'quantity': ('QUANTITY', int),
+            'items sold': ('ITEMS_SOLD', int), 'expiry date': ('EXPIRY_DATE', str)
         }
-
+        print(f"Editable fields: {', '.join(field_map.keys())}")
         field = input("Enter the field to be edited             | ").strip().lower()
+
         if field not in field_map:
             print("Invalid field name.")
             return
 
-        value = input("Enter the value to be set                | ").strip()
-        field_db = field_map[field]
-
-        numeric_float_fields = {'SELLING_PRICE', 'COST_PRICE', 'MRP'}
-        numeric_int_fields = {'ID', 'QUANTITY', 'ITEMS_SOLD'}
-        date_fields = {'EXPIRY_DATE'}
+        value_str = input(f"Enter the new value for {field}          | ").strip()
+        field_db, type_cast = field_map[field]
 
         try:
-            if field_db in numeric_float_fields:
-                value_cast = float(value)
-            elif field_db in numeric_int_fields:
-                value_cast = int(value)
-            elif field_db in date_fields:
-                value_cast = datetime.strptime(value, '%Y-%m-%d').date()
-            else:
-                value_cast = value
+            value_cast = type_cast(value_str)
         except ValueError:
-            print(f"Invalid value type for field '{field}'. Expected {field_db} compatible format.")
+            print(f"Invalid value. Please enter a valid {type_cast.__name__}.")
             return
 
         update_query = f"UPDATE product_database SET {field_db} = %s WHERE ID = %s"
         self.cursor.execute(update_query, (value_cast, product_id))
         self.db.commit()
+        print("Product updated successfully.")
 
-        if field_db != 'SELLING_PRICE':
-            dynamic_price = self.dynamic_price.get_dynamic_price(product_id)
-            if dynamic_price is not None:
-                self.cursor.execute("UPDATE product_database SET SELLING_PRICE = %s WHERE ID = %s", (dynamic_price, product_id))
-                self.db.commit()
-
-        self.cursor.execute(
-            "SELECT ID, NAME, SELLING_PRICE, COST_PRICE, BRAND, QUANTITY, ITEMS_SOLD, EXPIRY_DATE "
-            "FROM product_database WHERE ID = %s", (product_id,)
-        )
-        updated_product = self.cursor.fetchone()
-        expiry_display = updated_product[7].strftime('%Y-%m-%d') if isinstance(updated_product[7], (datetime, date)) else (str(updated_product[7]) if updated_product[7] else 'N/A')
-        sell_price_display = f"{updated_product[2]:.2f}" if isinstance(updated_product[2], (int, float)) else str(updated_product[2])
-        cost_price_display = f"{updated_product[3]:.2f}" if isinstance(updated_product[3], (int, float)) else str(updated_product[3])
-
-        print("\nUpdated Product Details:")
-        print("\n%-15s%-20s%-15s%-15s%-15s%-15s%-15s%-15s" %
-              ("ID", "NAME", "SELLING PRICE", "COST PRICE", "BRAND", "QUANTITY", "ITEMS SOLD", "EXPIRY DATE"))
-        print("%-15s%-20s%-15s%-15s%-15s%-15s%-15s%-15s" % (
-            updated_product[0], updated_product[1], sell_price_display, cost_price_display,
-            updated_product[4], updated_product[5], updated_product[6], expiry_display
-        ))
+        # Recalculate dynamic price after any relevant change
+        self.update_single_product_price(product_id)
 
     def delete_product(self):
         product_id = input("Enter the Product ID to be deleted : ").strip()
-        self.cursor.execute("SELECT ID FROM product_database WHERE ID = %s", (product_id,))
-        if not self.cursor.fetchone():
-            print("There is no product with this ID")
-            return
         self.cursor.execute("DELETE FROM product_database WHERE ID = %s", (product_id,))
-        self.db.commit()
-        print("Product Deleted")
+        if self.cursor.rowcount > 0:
+            self.db.commit()
+            print("Product Deleted Successfully.")
+        else:
+            print("No product with this ID found.")
 
     def make_purchase(self):
-        customer_contact = input("Customer contact number: ").strip()
-        if not customer_contact:
-            print("Invalid contact number.")
-            return
-        self.cursor.execute("SELECT CONTACT_NUMBER FROM customer_database")
-        existing_contacts = [str(row[0]) for row in self.cursor.fetchall()]
-        customer_exists = customer_contact in existing_contacts
-        if not customer_exists:
-            input("Enter the name of the customer                   | ").strip()
-            self.cursor.execute("SELECT COALESCE(MAX(CAST(ID AS UNSIGNED)), 0) FROM customer_database")
-            self.cursor.fetchone()[0] + 1
-            # Continue with purchase logic for new customer
-        product_ids, quantities, line_totals = [], [], []
+        customer_contact = input("Customer contact number (10 digits): ").strip()
+        self.cursor.execute("SELECT CONTACT_NUMBER FROM customer_database WHERE CONTACT_NUMBER = %s", (customer_contact,))
+        if not self.cursor.fetchone():
+            print("This is a new customer. Please add their details.")
+            self.customer_mgr.add_customer(contact=customer_contact)
+            # Re-verify customer was added
+            self.cursor.execute("SELECT CONTACT_NUMBER FROM customer_database WHERE CONTACT_NUMBER = %s", (customer_contact,))
+            if not self.cursor.fetchone():
+                print("Failed to add new customer. Aborting purchase.")
+                return
+
+        product_ids, quantities, line_totals, prices = [], [], [], []
         total_price = 0.0
+
         while True:
-            product_id = input("Enter the ID of the Product purchased (blank to finish) | ").strip()
+            product_id = input("Enter Product ID to purchase (or leave blank to finish) | ").strip()
             if not product_id:
                 break
+
             self.cursor.execute("SELECT QUANTITY FROM product_database WHERE ID = %s", (product_id,))
-            row_qty = self.cursor.fetchone()
-            if not row_qty:
+            result = self.cursor.fetchone()
+            if not result:
                 print(f"Product ID {product_id} not found. Skipping.")
                 continue
-            available_qty = int(row_qty[0])
-            query_price = """
-            SELECT p.ID,
-                ROUND(
-                        CASE
-                            WHEN DATEDIFF(p.EXPIRY_DATE, CURDATE()) >= %s 
-                                THEN p.MRP
-                            ELSE 
-                                p.MRP * (
-                                    %s + (1 - %s) *
-                                    GREATEST(0, LEAST(1, DATEDIFF(p.EXPIRY_DATE, CURDATE()) / %s)) *
-                                    (IFNULL(s.sold_last_month, 0) / NULLIF((IFNULL(s.sold_last_month, 0) + p.QUANTITY), 0))
-                                )
-                        END
-                , 2) AS dynamic_price
-            FROM product_database p
-            LEFT JOIN (
-                SELECT product_id, IFNULL(SUM(quantity), 0) AS sold_last_month
-                FROM sales_history
-                WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
-                GROUP BY product_id
-            ) s ON p.ID = s.product_id
-            WHERE p.ID = %s
-            """
-            self.cursor.execute(query_price, (self.dynamic_price.min_days_left, self.dynamic_price.min_price_ratio, self.dynamic_price.min_price_ratio, self.dynamic_price.min_days_left, product_id))
-            result = self.cursor.fetchone()
-            if not result or result[1] is None:
-                print(f"Dynamic price not found for product {product_id}. Skipping.")
+
+            available_qty = result[0]
+            if available_qty <= 0:
+                print(f"Product {product_id} is out of stock. Skipping.")
                 continue
-            dynamic_price = float(result[1])
+
             try:
-                quantity = int(input("Enter the quantity of this purchased product | ").strip())
-                if quantity <= 0 or quantity > available_qty:
-                    print(f"Invalid quantity. Available: {available_qty}. Skipping.")
+                quantity = int(input(f"Enter quantity (Available: {available_qty}) | ").strip())
+                if not (0 < quantity <= available_qty):
+                    print(f"Invalid quantity. Please enter a number between 1 and {available_qty}. Skipping.")
                     continue
             except ValueError:
-                print(f"Invalid quantity input. Available: {available_qty}. Skipping.")
+                print("Invalid quantity input. Skipping.")
                 continue
+
+            # Use the dynamic price module instead of duplicating the query
+            dynamic_price = self.dynamic_price.get_dynamic_price(product_id)
+            if dynamic_price is None:
+                print(f"Could not retrieve price for product {product_id}. Skipping.")
+                continue
+
+            # Record sale in history for dynamic pricing later
             self.cursor.execute("INSERT INTO sales_history (product_id, quantity, sale_date) VALUES (%s, %s, %s)", (product_id, quantity, date.today()))
+            # Update inventory
             self.cursor.execute("UPDATE product_database SET QUANTITY = QUANTITY - %s, ITEMS_SOLD = ITEMS_SOLD + %s WHERE ID = %s", (quantity, quantity, product_id))
-            self.db.commit()
+
             line_total = dynamic_price * quantity
             total_price += line_total
             product_ids.append(product_id)
             quantities.append(quantity)
+            prices.append(dynamic_price)
             line_totals.append(line_total)
+
         if not product_ids:
             print("No products purchased.")
+            self.db.commit() # Commit any sales history changes even if purchase is empty
             return
-        print("\n%-15s%-20s%-15s%-10s%-10s%-10s" % ('ID', 'NAME', 'BRAND', 'RATE', 'QUANTITY', 'AMOUNT'))
+
+        print("\n--- INVOICE ---")
+        print(f"{'ID':<15}{'NAME':<20}{'BRAND':<15}{'RATE':<10}{'QUANTITY':<10}{'AMOUNT':<10}")
         if product_ids:
             format_strings = ','.join(['%s'] * len(product_ids))
-            self.cursor.execute(f"SELECT ID, NAME, BRAND, SELLING_PRICE FROM product_database WHERE ID IN ({format_strings})", tuple(product_ids))
-        format_strings = ','.join(['%s'] * len(product_ids))
-        self.cursor.execute(f"SELECT ID, NAME, BRAND, SELLING_PRICE FROM product_database WHERE ID IN ({format_strings})", tuple(product_ids))
-        product_info = {str(row[0]): row for row in self.cursor.fetchall()}
-        for pid, qty, amt in zip(product_ids, quantities, line_totals):
-            product = product_info[str(pid)]
-            rate = float(product[3]) if product[3] is not None else 0.0
-            print("%-15s%-20s%-15s%-10s%-10s%-10s" % (product[0], product[1], product[2], rate, qty, amt))
+            self.cursor.execute(f"SELECT ID, NAME, BRAND FROM product_database WHERE ID IN ({format_strings})", tuple(product_ids))
+            product_info = {str(row[0]): row for row in self.cursor.fetchall()}
+            for pid, qty, rate, amt in zip(product_ids, quantities, prices, line_totals):
+                product = product_info.get(str(pid), ('N/A', 'N/A', 'N/A'))
+                print(f"{product[0]:<15}{product[1]:<20}{product[2]:<15}{rate:<10.2f}{qty:<10}{amt:<10.2f}")
+
         print(f"\nTotal amount to be paid: {total_price:.2f}\n")
-        purchase_record = ''.join([
-            f"{sanitize(pid)} {sanitize(product_info[str(pid)][1])} {sanitize(product_info[str(pid)][3])} {sanitize(qty)} {sanitize(amt)}|"
-            for pid, qty, amt in zip(product_ids, quantities, line_totals)
-        ])
-        self.cursor.execute("SELECT PURCHASES FROM customer_database WHERE CONTACT_NUMBER = %s", (customer_contact,))
-        row = self.cursor.fetchone()
-        existing_purchases = row[0] if row and row[0] else ''
-        separator = '\n' if existing_purchases else ''
-        updated_purchases = existing_purchases + separator + purchase_record
-        self.cursor.execute("UPDATE customer_database SET PURCHASES = %s WHERE CONTACT_NUMBER = %s", (updated_purchases, customer_contact))
+        # NOTE: Saving purchase history to the customer table is not ideal.
+        # This is kept to match the original structure, but a separate 'sales' table is recommended.
+        purchase_record_items = [
+            f"{sanitize(pid)} {sanitize(product_info.get(str(pid), ['','N/A'])[1])} {sanitize(rate)} {sanitize(qty)} {sanitize(amt)}"
+            for pid, qty, rate, amt in zip(product_ids, quantities, prices, line_totals)
+        ]
+        purchase_record = '|'.join(purchase_record_items)
+
+        self.cursor.execute("UPDATE customer_database SET PURCHASES = CONCAT_WS('\\n', PURCHASES, %s) WHERE CONTACT_NUMBER = %s", (purchase_record, customer_contact))
         self.db.commit()
         print("Purchase recorded successfully.\n")
 
@@ -245,17 +189,16 @@ class ProductManager:
         if not search_term:
             print("Search term cannot be empty.")
             return
-        query = """
-            SELECT ID, NAME, MRP, SELLING_PRICE, COST_PRICE, BRAND, QUANTITY, ITEMS_SOLD, EXPIRY_DATE
-            FROM product_database
-            WHERE NAME LIKE %s OR BRAND LIKE %s
-        """
+
+        query = "SELECT * FROM product_database WHERE NAME LIKE %s OR BRAND LIKE %s"
         like_term = f"%{search_term}%"
         self.cursor.execute(query, (like_term, like_term))
         results = self.cursor.fetchall()
+
         if not results:
             print("No products found matching your search.")
             return
+
         headers = f"{'ID':<10}{'NAME':<20}{'MRP':<10}{'SELLING_PRICE':<15}{'COST_PRICE':<15}{'BRAND':<15}{'QUANTITY':<10}{'ITEMS_SOLD':<12}{'EXPIRY_DATE':<12}"
         print(headers)
         for row in results:

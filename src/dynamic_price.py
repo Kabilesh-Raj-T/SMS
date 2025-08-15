@@ -1,10 +1,9 @@
 class Dynamic_Price:
-    def __init__(self, db, cursor, min_price_ratio=0.75, min_days_left=31):
+    def __init__(self, db, min_price_ratio=0.75, min_days_left=31):
         self.db = db
-        self.cursor = cursor
+        self.cursor = db.cursor
         self.min_price_ratio = min_price_ratio
         self.min_days_left = min_days_left
-        # Cache the common SQL subquery
         self.sales_subquery = """
             SELECT product_id, IFNULL(SUM(quantity), 0) AS sold_last_month
             FROM sales_history
@@ -55,7 +54,7 @@ class Dynamic_Price:
 
     def get_dynamic_price(self, product_id):
         query = f"""
-            SELECT 
+            SELECT
                 p.MRP,
                 DATEDIFF(p.EXPIRY_DATE, CURDATE()) as days_left,
                 p.QUANTITY,
@@ -69,7 +68,7 @@ class Dynamic_Price:
             result = self.cursor.fetchone()
             if not result:
                 return None
-            
+
             mrp, days_left, quantity, sold_last_month = result
             return self._calculate_price(
                 mrp, days_left, sold_last_month, quantity,

@@ -1,5 +1,4 @@
 from mysql.connector import Error
-
 import mysql.connector
 
 class Database:
@@ -16,6 +15,7 @@ class Database:
                 database=database
             )
             self.cursor = self.conn.cursor(buffered=True)
+            print("Database connection successful.")
         except Error as e:
             print(f"Error connecting to MySQL: {e}")
             self.conn = None
@@ -27,9 +27,7 @@ class Database:
             print("No database connection.")
             return None
         try:
-            if values is None:
-                values = ()
-            self.cursor.execute(query, values)
+            self.cursor.execute(query, values or ())
             return self.cursor
         except Error as e:
             print(f"Error executing query: {e}")
@@ -42,13 +40,20 @@ class Database:
             except Error as e:
                 print(f"Error during commit: {e}")
 
-    def fetch_all(self):
+    def fetchone(self):
+        if self.cursor:
+            try:
+                return self.cursor.fetchone()
+            except Error as e:
+                print(f"Error fetching data: {e}")
+        return None
+
+    def fetchall(self):
         if self.cursor:
             try:
                 return self.cursor.fetchall()
             except Error as e:
                 print(f"Error fetching data: {e}")
-                return None
         return None
 
     def close(self):
@@ -60,5 +65,6 @@ class Database:
         if self.conn:
             try:
                 self.conn.close()
+                print("Database connection closed.")
             except Exception as e:
                 print(f"Error closing connection: {e}")

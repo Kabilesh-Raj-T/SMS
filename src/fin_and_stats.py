@@ -1,42 +1,39 @@
 class FinanceManager:
-    def __init__(self, db, cursor):
+    def __init__(self, db):
         self.db = db
-        self.cursor = cursor
+        self.cursor = db.cursor
 
     def profit_by_product(self):
-        print("%-15s%-20s%-15s%-15s%-15s" %
-              ("ID", "NAME", "SELLING PRICE", "COST PRICE", "PROFIT/LOSS"))
+        print(f"{'ID':<15}{'NAME':<20}{'SELLING PRICE':<15}{'COST PRICE':<15}{'PROFIT/LOSS':<15}")
 
         self.cursor.execute("""
-            SELECT ID, NAME, SELLING_PRICE, COST_PRICE, QUANTITY, ITEMS_SOLD,
+            SELECT ID, NAME, SELLING_PRICE, COST_PRICE,
                 (SELLING_PRICE * ITEMS_SOLD) - ((QUANTITY + ITEMS_SOLD) * COST_PRICE) AS PROFIT
             FROM product_database
             ORDER BY PROFIT DESC
         """)
 
         for row in self.cursor.fetchall():
-            product_id, name, selling_price, cost_price, quantity, items_sold, profit_loss = row
-            print("%-15s%-20s%-15.2f%-15.2f%-15.2f" %
-                (product_id, name, selling_price, cost_price, profit_loss))
+            product_id, name, selling_price, cost_price, profit_loss = row
+            print(f"{product_id:<15}{name:<20}{selling_price:<15.2f}{cost_price:<15.2f}{profit_loss:<15.2f}")
 
     def total_profit_or_loss(self):
-        self.cursor.execute("SELECT SELLING_PRICE, COST_PRICE, QUANTITY, ITEMS_SOLD FROM product_database")
-        total = 0
-        for s_price, c_price, qty, sold in self.cursor.fetchall():
-            revenue = s_price * sold
-            cost = (qty + sold) * c_price
-            profit_loss = revenue - cost
-            total += profit_loss
+        self.cursor.execute("""
+            SELECT SUM((SELLING_PRICE * ITEMS_SOLD) - ((QUANTITY + ITEMS_SOLD) * COST_PRICE))
+            FROM product_database
+        """)
+        result = self.cursor.fetchone()
+        total = result[0] if result and result[0] is not None else 0
 
         if total < 0:
-            print(f"LOSS   = {abs(total):.2f}")
+            print(f"TOTAL LOSS = {abs(total):.2f}")
         else:
-            print(f"PROFIT = {total:.2f}")
+            print(f"TOTAL PROFIT = {total:.2f}")
 
 class StatManager:
-    def __init__(self, db, cursor):
+    def __init__(self, db):
         self.db = db
-        self.cursor = cursor
+        self.cursor = db.cursor
 
     def best_selling_product(self):
         self.cursor.execute(
@@ -50,29 +47,18 @@ class StatManager:
             print("No products found.")
 
     def most_profitable_product(self):
-        self.cursor.execute("SELECT ID, NAME, SELLING_PRICE, COST_PRICE, QUANTITY, ITEMS_SOLD FROM product_database")
-
-        max_profit = float('-inf')
-        best_product = None
-
-        for row in self.cursor.fetchall():
-            product_id, name, s_price, c_price, qty, sold = row
-            s_price = s_price or 0
-            c_price = c_price or 0
-            qty = qty or 0
-            sold = sold or 0
-
-            revenue = s_price * sold
-            cost = (qty + sold) * c_price
-            profit = revenue - cost
-
-            if profit > max_profit:
-                max_profit = profit
-                best_product = (product_id, name, profit)
-
-        if best_product:
+        # This calculation is now done in SQL for much better performance.
+        query = """
+            SELECT ID, NAME, ((SELLING_PRICE * ITEMS_SOLD) - ((QUANTITY + ITEMS_SOLD) * COST_PRICE)) AS PROFIT
+            FROM product_database
+            ORDER BY PROFIT DESC
+            LIMIT 1
+        """
+        self.cursor.execute(query)
+        product = self.cursor.fetchone()
+        if product:
             print("\n💰 Most Profitable Product")
-            print(f"ID: {best_product[0]}, NAME: {best_product[1]}, PROFIT: {best_product[2]:.2f}")
+            print(f"ID: {product[0]}, NAME: {product[1]}, PROFIT: {product[2]:.2f}")
         else:
             print("No products found.")
 

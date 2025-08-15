@@ -1,19 +1,21 @@
 #!/bin/sh
 set -e
 
-# Location to store the "installation done" marker
-INSTALL_MARKER="/app/.installed"
+# Path for persistent data and marker
+PERSISTENT_DIR="/app/data"
+INSTALL_MARKER="$PERSISTENT_DIR/.installed"
+
+# Ensure the persistent directory exists
+mkdir -p "$PERSISTENT_DIR"
 
 if [ ! -f "$INSTALL_MARKER" ]; then
     echo "Running installer..."
-    python "setup/SMS Installer.py"
+    python "setup/SMS_Installer.py" # Assuming this writes to $PERSISTENT_DIR
     touch "$INSTALL_MARKER"
+    echo "Installation complete."
 else
     echo "Installer already run. Skipping..."
 fi
 
 echo "Starting main application..."
 exec python -m src.main
-
-docker build -t sms-app .
-docker run -it --name sms-container -v sms_data:/app sms-app
