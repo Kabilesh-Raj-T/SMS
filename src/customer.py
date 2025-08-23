@@ -1,32 +1,31 @@
-import re
 class CustomerManager:
     def __init__(self, db):
         self.db = db
         self.cursor = db.cursor
 
     def _print_table_header(self):
-        print("_" * 130)
-        print(f"{'ID':<15}{'NAME':<20}{'CONTACT NUMBER':<25}{'GENDER':<15}{'EMAIL':<25}{'PURCHASES':<20}")
-        print("_" * 130)
+        print("_" * 105)
+        print(f"{'ID':<15}{'NAME':<20}{'CONTACT NUMBER':<25}{'GENDER':<15}{'PURCHASES':<20}")
+        print("_" * 105)
 
     def view_all_customers(self):
         self._print_table_header()
         try:
-            self.cursor.execute("SELECT * FROM customer_database")
+            self.cursor.execute("SELECT ID, NAME, CONTACT_NUMBER, GENDER, PURCHASES FROM customer_database")
             for row in self.cursor.fetchall():
-                purchases = (row[5] or '').split('|')
+                # Replace None with empty string for all fields
+                row = tuple('' if v is None else v for v in row)
+                purchases = (row[4] or '').split('|')
                 for i, purchase in enumerate(purchases):
                     if purchase:
                         if i == 0:
-                            print(f"{row[0]:<15}{row[1]:<20}{row[2]:<25}{row[3]:<15}{row[4]:<25}{purchase:<20}")
+                            print(f"{row[0]:<15}{row[1]:<20}{row[2]:<25}{row[3]:<15}{purchase:<20}")
                         else:
-                            print(f"{'':<15}{'':<20}{'':<25}{'':<15}{'':<25}{purchase:<20}")
+                            print(f"{'':<15}{'':<20}{'':<25}{'':<15}{purchase:<20}")
         except Exception as e:
             print(f"Error viewing customers: {e}")
 
-    def add_customer(self, customer_id=None, name=None, contact=None, gender=None, email=None):
-        email_pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-
+    def add_customer(self, customer_id=None, name=None, contact=None, gender=None):
         if not customer_id:
             customer_id = input("Enter the Customer ID (5-10 alphanum)    |  ").strip()
         if not (customer_id.isalnum() and 5 <= len(customer_id) <= 10):
@@ -47,17 +46,11 @@ class CustomerManager:
 
         if not name: name = input("Enter name of customer                   |  ").strip()
         if not gender: gender = input("Enter gender of customer                 |  ").strip()
-        if not email:
-            while True:
-                email = input("Enter email of customer                  |  ").strip()
-                if re.match(email_pattern, email):
-                    break
-                print("Invalid email format (e.g., user@example.com).")
 
         try:
-            query = """INSERT INTO customer_database (ID, NAME, CONTACT_NUMBER, GENDER, EMAIL, PURCHASES)
-                    VALUES (%s, %s, %s, %s, %s, %s)"""
-            self.cursor.execute(query, (customer_id, name, contact, gender, email, ""))
+            query = """INSERT INTO customer_database (ID, NAME, CONTACT_NUMBER, GENDER, PURCHASES)
+                    VALUES (%s, %s, %s, %s, %s)"""
+            self.cursor.execute(query, (customer_id, name, contact, gender, ""))
             self.db.commit()
             print("Customer Data Inserted")
         except Exception as e:
@@ -72,7 +65,7 @@ class CustomerManager:
                 print("No customer found with this ID.")
                 return
 
-            allowed_fields = {'contact number': 'CONTACT_NUMBER', 'email': 'EMAIL', 'name': 'NAME', 'gender': 'GENDER'}
+            allowed_fields = {'contact number': 'CONTACT_NUMBER', 'name': 'NAME', 'gender': 'GENDER'}
             print("Allowed fields to edit: " + ", ".join(allowed_fields.keys()))
 
             field = input("Enter the field to be edited              | ").strip().lower()
@@ -108,18 +101,18 @@ class CustomerManager:
         try:
             customer_id = input("Enter the ID of Customer to be searched : ").strip()
             self.cursor.execute(
-                "SELECT ID, NAME, CONTACT_NUMBER, GENDER, EMAIL, PURCHASES FROM customer_database WHERE ID = %s",
+                "SELECT ID, NAME, CONTACT_NUMBER, GENDER, PURCHASES FROM customer_database WHERE ID = %s",
                 (customer_id,)
             )
             data = self.cursor.fetchone()
             if data:
                 self._print_table_header()
-                purchases = (data[5] or '').split('|')
+                purchases = (data[4] or '').split('|')
                 for i, p in enumerate(purchases):
                     if i == 0:
-                        print(f"{data[0]:<15}{data[1]:<20}{data[2]:<25}{data[3]:<15}{data[4]:<25}{p:<20}")
+                        print(f"{data[0]:<15}{data[1]:<20}{data[2]:<25}{data[3]:<15}{p:<20}")
                     elif p:
-                        print(f"{'':<15}{'':<20}{'':<25}{'':<15}{'':<25}{p:<20}")
+                        print(f"{'':<15}{'':<20}{'':<25}{'':<15}{p:<20}")
             else:
                 print("No customer data with this ID.\n")
         except Exception as e:
