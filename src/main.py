@@ -15,7 +15,7 @@ def main():
 
     dynamic_price = Dynamic_Price(db)
     customer_mgr = CustomerManager(db)
-    product_mgr = ProductManager(db, dynamic_price, customer_mgr)
+    product_mgr = ProductManager(db.conn, dynamic_price, customer_mgr)
     employee_mgr = EmployeeManager(db)
     finance_mgr = FinanceManager(db)
     stat_mgr = StatManager(db)
