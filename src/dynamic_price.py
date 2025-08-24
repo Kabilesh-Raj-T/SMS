@@ -70,6 +70,10 @@ class Dynamic_Price:
                 return None
 
             mrp, days_left, quantity, sold_last_month = result
+            # Convert Decimal to float for calculation
+            mrp = float(mrp)
+            quantity = float(quantity)
+            sold_last_month = float(sold_last_month)
             return self._calculate_price(
                 mrp, days_left, sold_last_month, quantity,
                 self.min_price_ratio, self.min_days_left
