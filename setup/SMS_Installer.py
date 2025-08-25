@@ -1,16 +1,38 @@
 import os
 import mysql.connector
 from dotenv import load_dotenv
-load_dotenv()
-mydb = None
+
+script_dir = os.path.dirname(__file__)
+# Go up one level to the parent directory (D:\SMS\SMS)
+parent_dir = os.path.abspath(os.path.join(script_dir, '..'))
+# Create the full path to the .env file
+env_path = os.path.join(parent_dir, '.env')
+print(f"Attempting to load .env file from: {env_path}")
+if not os.path.exists(env_path):
+    print(f"❌ ERROR: The .env file was NOT found at the path above.")
+else:
+    print("✅ .env file found.")
+
+# --- Load the .env file from the specified path ---
+load_dotenv(dotenv_path=env_path)
+
+mydb = None  # Initialize the connection variable outside the try block
 try:
+    # --- 1. Get and validate environment variables ---
+    db_port_str = os.getenv("MYSQLPORT")
+    if not db_port_str:
+        raise ValueError("MYSQLPORT environment variable is not set.")
+
+    # --- 2. Attempt to connect to the database ---
     mydb = mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME")
+        host=os.getenv("MYSQLHOST"),
+        port=int(db_port_str),  # Convert port to an integer
+        user=os.getenv("MYSQLUSER"),
+        password=os.getenv("MYSQLPASSWORD"),
+        database=os.getenv("MYSQLDATABASE")
     )
+    
+    print("✅ Successfully connected to the database!")
 
     mycursor = mydb.cursor()
     print("✅ Successfully connected to your Railway database!")
