@@ -5,7 +5,7 @@ class CustomerManager:
 
     def _print_table_header(self):
         print("_" * 105)
-        print(f"{'ID':<15}{'NAME':<20}{'CONTACT NUMBER':<25}{'GENDER':<15}{'PURCHASES':<20}")
+        print(f"{'ID':<15}{'NAME':<20}{'CONTACT NUMBER':<25}{'GENDER':<15}{'TOTAL SPENT':<20}")
         print("_" * 105)
 
     def view_all_customers(self):
@@ -13,24 +13,21 @@ class CustomerManager:
         try:
             self.cursor.execute("SELECT ID, NAME, CONTACT_NUMBER, GENDER, PURCHASES FROM customer_database")
             for row in self.cursor.fetchall():
-                # Replace None with empty string for all fields
-                row = tuple('' if v is None else v for v in row)
-                purchases = (row[4] or '').split('|')
-                for i, purchase in enumerate(purchases):
-                    if purchase:
-                        if i == 0:
-                            print(f"{row[0]:<15}{row[1]:<20}{row[2]:<25}{row[3]:<15}{purchase:<20}")
-                        else:
-                            print(f"{'':<15}{'':<20}{'':<25}{'':<15}{purchase:<20}")
+                id_, name, contact, gender, purchases = row
+                id_ = '' if id_ is None else id_
+                name = '' if name is None else name
+                contact = '' if contact is None else contact
+                gender = '' if gender is None else gender
+                total_spent = purchases if purchases is not None and purchases != '' else '0'
+                # Convert id_ to string for consistent formatting
+                print(f"{str(id_):<15}{name:<20}{contact:<25}{gender:<15}{total_spent:<20}")
         except Exception as e:
             print(f"Error viewing customers: {e}")
 
-    def add_customer(self, customer_id=None, name=None, contact=None, gender=None):
-        if not customer_id:
-            customer_id = input("Enter the Customer ID (5-10 alphanum)    |  ").strip()
-        if not (customer_id.isalnum() and 5 <= len(customer_id) <= 10):
-            print("Invalid Customer ID format. Please enter an alphanumeric ID (5-10 characters).")
-            return
+    def add_customer(self, name=None, contact=None, gender=None):
+        # Automatically assign ID = max(ID) + 1
+        self.cursor.execute("SELECT COALESCE(MAX(ID), 0) + 1 FROM customer_database")
+        new_id = self.cursor.fetchone()[0]
 
         if not contact:
             while True:
@@ -38,28 +35,39 @@ class CustomerManager:
                 if contact.isdigit() and len(contact) == 10:
                     break
                 print("Invalid contact number format. Please enter a 10-digit number.")
-        
-        self.cursor.execute("SELECT ID, CONTACT_NUMBER FROM customer_database WHERE ID = %s OR CONTACT_NUMBER = %s", (customer_id, contact))
+
+        # Check if this contact already exists
+        self.cursor.execute("SELECT ID FROM customer_database WHERE CONTACT_NUMBER = %s", (contact,))
         if self.cursor.fetchone():
-            print("A customer with this ID or Contact Number already exists.")
+            print("A customer with this contact number already exists.")
             return
 
-        if not name: name = input("Enter name of customer                   |  ").strip()
-        if not gender: gender = input("Enter gender of customer                 |  ").strip()
+        if not name:
+            name = input("Enter name of customer                       |  ").strip()
+        if not gender:
+            gender = input("Enter gender of customer                     |  ").strip()
 
         try:
             query = """INSERT INTO customer_database (ID, NAME, CONTACT_NUMBER, GENDER, PURCHASES)
                     VALUES (%s, %s, %s, %s, %s)"""
-            self.cursor.execute(query, (customer_id, name, contact, gender, ""))
+            self.cursor.execute(query, (new_id, name, contact, gender, "0"))
             self.db.commit()
-            print("Customer Data Inserted")
+            print(f"✅ Customer Data Inserted with ID {new_id}")
         except Exception as e:
             self.db.rollback()
-            print(f"Error adding customer: {e}")
+            print(f"❌ Error adding customer: {e}")
+
 
     def edit_customer(self):
         try:
-            customer_id = input("Enter the ID of the customer to be edited | ").strip()
+            # CHANGED: Input handling for integer ID
+            customer_id_str = input("Enter the ID of the customer to be edited | ").strip()
+            try:
+                customer_id = int(customer_id_str)
+            except ValueError:
+                print("Invalid ID format. Please enter a valid integer.")
+                return
+
             self.cursor.execute("SELECT * FROM customer_database WHERE ID = %s", (customer_id,))
             if not self.cursor.fetchone():
                 print("No customer found with this ID.")
@@ -86,7 +94,14 @@ class CustomerManager:
 
     def delete_customer(self):
         try:
-            customer_id = input("Enter the Customer ID to be deleted : ").strip()
+            # CHANGED: Input handling for integer ID
+            customer_id_str = input("Enter the Customer ID to be deleted : ").strip()
+            try:
+                customer_id = int(customer_id_str)
+            except ValueError:
+                print("Invalid ID format. Please enter a valid integer.")
+                return
+
             self.cursor.execute("DELETE FROM customer_database WHERE ID = %s", (customer_id,))
             if self.cursor.rowcount > 0:
                 self.db.commit()
@@ -99,7 +114,14 @@ class CustomerManager:
 
     def search_customer(self):
         try:
-            customer_id = input("Enter the ID of Customer to be searched : ").strip()
+            # CHANGED: Input handling for integer ID
+            customer_id_str = input("Enter the ID of Customer to be searched : ").strip()
+            try:
+                customer_id = int(customer_id_str)
+            except ValueError:
+                print("Invalid ID format. Please enter a valid integer.")
+                return
+
             self.cursor.execute(
                 "SELECT ID, NAME, CONTACT_NUMBER, GENDER, PURCHASES FROM customer_database WHERE ID = %s",
                 (customer_id,)
@@ -107,12 +129,14 @@ class CustomerManager:
             data = self.cursor.fetchone()
             if data:
                 self._print_table_header()
-                purchases = (data[4] or '').split('|')
-                for i, p in enumerate(purchases):
-                    if i == 0:
-                        print(f"{data[0]:<15}{data[1]:<20}{data[2]:<25}{data[3]:<15}{p:<20}")
-                    elif p:
-                        print(f"{'':<15}{'':<20}{'':<25}{'':<15}{p:<20}")
+                id_, name, contact, gender, purchases = data
+                id_ = '' if id_ is None else id_
+                name = '' if name is None else name
+                contact = '' if contact is None else contact
+                gender = '' if gender is None else gender
+                total_spent = purchases if purchases is not None and purchases != '' else '0'
+                # Convert id_ to string for consistent formatting
+                print(f"{str(id_):<15}{name:<20}{contact:<25}{gender:<15}{total_spent:<20}")
             else:
                 print("No customer data with this ID.\n")
         except Exception as e:

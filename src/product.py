@@ -137,14 +137,35 @@ class ProductManager:
             print("No product with this ID found.")
 
     def make_purchase(self):
+        # 1. Handle Customer (only contact number required)
         customer_contact = input("Customer contact number (10 digits): ").strip()
-        self.cursor.execute("SELECT CONTACT_NUMBER FROM customer_database WHERE CONTACT_NUMBER = %s", (customer_contact,))
-        if not self.cursor.fetchone():
+        self.cursor.execute(
+            "SELECT ID, CONTACT_NUMBER, PURCHASES FROM customer_database WHERE CONTACT_NUMBER = %s",
+            (customer_contact,),
+        )
+        customer_data = self.cursor.fetchone()
+
+        if not customer_data:
             print("This is a new customer. Adding with contact only.")
-            self.cursor.execute("INSERT INTO customer_database (CONTACT_NUMBER) VALUES (%s)", (customer_contact,))
+            # Auto-generate ID = max(ID)+1
+            self.cursor.execute("SELECT COALESCE(MAX(ID), 0) + 1 FROM customer_database")
+            new_id = self.cursor.fetchone()[0]
+
+            self.cursor.execute(
+                "INSERT INTO customer_database (ID, NAME, CONTACT_NUMBER, GENDER, PURCHASES) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (new_id, None, customer_contact, None, 0),
+            )
             self.db.commit()
 
-        product_ids, quantities, line_totals, prices = [], [], [], []
+            customer_data = (new_id, customer_contact, 0.0)
+
+        customer_id, _, current_total_spent = customer_data
+        current_total_spent = float(current_total_spent or 0.0)
+
+        # 2. Collect items one by one with immediate stock check
+        invoice_items = []
+        product_update_data = []
         total_price = 0.0
 
         while True:
@@ -152,71 +173,80 @@ class ProductManager:
             if not product_id:
                 break
 
-            self.cursor.execute("SELECT QUANTITY FROM product_database WHERE ID = %s", (product_id,))
-            result = self.cursor.fetchone()
-            if not result:
-                print(f"Product ID {product_id} not found. Skipping.")
+            # Get product info
+            self.cursor.execute(
+                "SELECT ID, NAME, BRAND, QUANTITY FROM product_database WHERE ID = %s", (product_id,)
+            )
+            product = self.cursor.fetchone()
+
+            if not product:
+                print(f"❌ Product ID {product_id} not found. Try again.")
                 continue
 
-            available_qty = result[0]
-            if available_qty <= 0:
-                print(f"Product {product_id} is out of stock. Skipping.")
-                continue
+            _, name, brand, available_qty = product
 
             try:
-                quantity = int(input(f"Enter quantity (Available: {available_qty}) | ").strip())
-                if not (0 < quantity <= available_qty):
-                    print(f"Invalid quantity. Please enter a number between 1 and {available_qty}. Skipping.")
-                    continue
+                quantity = int(input(f"Enter quantity for {name} (Available: {available_qty}) | ").strip())
             except ValueError:
-                print("Invalid quantity input. Skipping.")
+                print("❌ Invalid quantity. Skipping.")
                 continue
 
-            # Use the dynamic price module instead of duplicating the query
+            if quantity <= 0:
+                print("❌ Quantity must be positive. Skipping.")
+                continue
+
+            if quantity > available_qty:
+                print(f"⚠️ Not enough stock for {name}. Requested: {quantity}, Available: {available_qty}.")
+                continue
+
+            # Get dynamic price
             dynamic_price = self.dynamic_price.get_dynamic_price(product_id)
             if dynamic_price is None:
-                print(f"Could not retrieve price for product {product_id}. Skipping.")
+                print(f"❌ Could not retrieve price for {name}. Skipping.")
                 continue
-
-            # Record sale in history for dynamic pricing later
-            self.cursor.execute("INSERT INTO sales_history (product_id, quantity, sale_date) VALUES (%s, %s, %s)", (product_id, quantity, date.today()))
-            # Update inventory
-            self.cursor.execute("UPDATE product_database SET QUANTITY = QUANTITY - %s, ITEMS_SOLD = ITEMS_SOLD + %s WHERE ID = %s", (quantity, quantity, product_id))
 
             line_total = dynamic_price * quantity
             total_price += line_total
-            product_ids.append(product_id)
-            quantities.append(quantity)
-            prices.append(dynamic_price)
-            line_totals.append(line_total)
 
-        if not product_ids:
-            print("No products purchased.")
-            self.db.commit() # Commit any sales history changes even if purchase is empty
+            # Collect info
+            invoice_items.append(
+                {"id": product_id, "name": name, "brand": brand, "rate": dynamic_price,
+                "qty": quantity, "amount": line_total}
+            )
+            product_update_data.append((quantity, quantity, product_id))
+
+        if not invoice_items:
+            print("No valid products entered for purchase.")
             return
 
+        # 3. Execute DB updates
+        try:
+            # Update stock
+            self.cursor.executemany(
+                "UPDATE product_database SET QUANTITY = QUANTITY - %s, ITEMS_SOLD = ITEMS_SOLD + %s WHERE ID = %s",
+                product_update_data,
+            )
+
+            # Update customer’s total spent (cumulative add)
+            self.cursor.execute(
+                "UPDATE customer_database SET PURCHASES = PURCHASES + %s WHERE CONTACT_NUMBER = %s",
+                (total_price, customer_contact),
+            )
+
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            print(f"❌ An error occurred during database update: {e}. Purchase cancelled.")
+            return
+
+        # 4. Print Invoice
         print("\n--- INVOICE ---")
-        print(f"{'ID':<15}{'NAME':<20}{'BRAND':<15}{'RATE':<10}{'QUANTITY':<10}{'AMOUNT':<10}")
-        if product_ids:
-            format_strings = ','.join(['%s'] * len(product_ids))
-            self.cursor.execute(f"SELECT ID, NAME, BRAND FROM product_database WHERE ID IN ({format_strings})", tuple(product_ids))
-            product_info = {str(row[0]): row for row in self.cursor.fetchall()}
-            for pid, qty, rate, amt in zip(product_ids, quantities, prices, line_totals):
-                product = product_info.get(str(pid), ('N/A', 'N/A', 'N/A'))
-                print(f"{product[0]:<15}{product[1]:<20}{product[2]:<15}{rate:<10.2f}{qty:<10}{amt:<10.2f}")
+        print(f"{'ID':<5}{'NAME':<20}{'BRAND':<15}{'RATE':<10}{'QTY':<10}{'AMOUNT':<10}")
+        for item in invoice_items:
+            print(f"{item['id']:<5}{item['name']:<20}{item['brand']:<15}{item['rate']:<10.2f}{item['qty']:<10}{item['amount']:<10.2f}")
 
         print(f"\nTotal amount to be paid: {total_price:.2f}\n")
-        # NOTE: Saving purchase history to the customer table is not ideal.
-        # This is kept to match the original structure, but a separate 'sales' table is recommended.
-        purchase_record_items = [
-            f"{sanitize(pid)} {sanitize(product_info.get(str(pid), ['','N/A'])[1])} {sanitize(rate)} {sanitize(qty)} {sanitize(amt)}"
-            for pid, qty, rate, amt in zip(product_ids, quantities, prices, line_totals)
-        ]
-        purchase_record = '|'.join(purchase_record_items)
-
-        self.cursor.execute("UPDATE customer_database SET PURCHASES = CONCAT_WS('\\n', PURCHASES, %s) WHERE CONTACT_NUMBER = %s", (purchase_record, customer_contact))
-        self.db.commit()
-        print("Purchase recorded successfully.\n")
+        print("✅ Purchase recorded successfully.\n")
 
     def search_product(self):
         search_term = input("Enter product ID to search: ").strip()

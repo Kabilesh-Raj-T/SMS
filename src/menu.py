@@ -112,6 +112,9 @@ class Menu:
             "3": ("Best Seller", self.stat_mgr.best_selling_product),
             "4": ("Most Profitable", self.stat_mgr.most_profitable_product),
             "5": ("Least Seller", self.stat_mgr.least_selling_product),
+            "6": ("Customer Statistics", self.stat_mgr.customer_statistics),
+            "7": ("Employee Statistics", self.stat_mgr.employee_statistics),
+            "8": ("Best Customer", self.stat_mgr.best_customer),
         }
         self._run_menu("Finance & Stats", options)
 

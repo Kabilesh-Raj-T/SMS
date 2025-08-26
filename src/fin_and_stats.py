@@ -72,3 +72,34 @@ class StatManager:
             print(f"ID: {product[0]}, NAME: {product[1]}, ITEMS SOLD: {product[2]}")
         else:
             print("No products found.")
+
+    def customer_statistics(self):
+        self.cursor.execute("SELECT COUNT(*) FROM customer_database")
+        total_customers = self.cursor.fetchone()[0]
+
+        self.cursor.execute("SELECT SUM(PURCHASES) FROM customer_database")
+        total_revenue = self.cursor.fetchone()[0] or 0
+
+        print(f"\n👥 Total Customers: {total_customers}")
+        print(f"💵 Total Revenue from Customers: {total_revenue:.2f}")
+    
+    def employee_statistics(self):
+        self.cursor.execute("SELECT COUNT(*) FROM employee_database")
+        total_employees = self.cursor.fetchone()[0]
+
+        self.cursor.execute("SELECT SUM(SALARY) FROM employee_database")
+        total_salaries = self.cursor.fetchone()[0] or 0
+
+        print(f"\n👷 Total Employees: {total_employees}")
+        print(f"💰 Total Salaries Paid: {total_salaries:.2f}")
+    
+    def best_customer(self):
+        self.cursor.execute(
+            "SELECT ID, NAME, PURCHASES FROM customer_database ORDER BY PURCHASES DESC LIMIT 1"
+        )
+        best_customer = self.cursor.fetchone()
+        if best_customer:
+            print("\n🏆 Best Customer")
+            print(f"ID: {best_customer[0]}, NAME: {best_customer[1]}, PURCHASES: {best_customer[2]}")
+        else:
+            print("No customers found.")
