@@ -1,29 +1,26 @@
 from mysql.connector import Error
 import mysql.connector
-from dotenv import load_dotenv
-import os
-load_dotenv()
 
-# Get credentials from the environment
-db_host = os.getenv("MYSQLHOST")
-db_user = os.getenv("MYSQLUSER")
-db_password = os.getenv("MYSQLPASSWORD")
-db_name = os.getenv("MYSQLDATABASE")
-db_port = os.getenv("MYSQLPORT")
+HOST = "kabilesh-sql.mysql.database.azure.com"
+PORT = 3306
+USER = "kabilesh"      # Admin user
+PASSWORD = "hehesike1!"              # Admin password
+DATABASE = "sms_database"
+SSL_CA = r"D:\SMS\DigiCertGlobalRootCA.crt.pem"
 
 class Database:
     def __init__(self,
-                 host=db_host,
-                 user=db_user,
-                 passwd=db_password,
-                 database=db_name):
+                 host=HOST,
+                 user=USER,
+                 password=PASSWORD,
+                 database=DATABASE):
         try:
             self.conn = mysql.connector.connect(
                 host=host,
                 user=user,
-                passwd=passwd,
+                password=password,
                 database=database,
-                port=int(db_port)
+                port=int(PORT)
             )
             self.cursor = self.conn.cursor(buffered=True)
             print("Database connection successful.")
