@@ -177,4 +177,3 @@ finally:
         cursor.close()
     if 'cnx' in locals() and cnx.is_connected():
         cnx.close()
-        print("Connection closed.")
