@@ -9,7 +9,6 @@ INSTALL_MARKER="$PERSISTENT_DIR/.installed"
 mkdir -p "$PERSISTENT_DIR"
 
 if [ ! -f "$INSTALL_MARKER" ]; then
-    echo "Running installer..."
     python "setup/SMS_Installer.py" # Assuming this writes to $PERSISTENT_DIR
     touch "$INSTALL_MARKER"
 else
