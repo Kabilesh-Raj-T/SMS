@@ -1,10 +1,10 @@
-from database import Database
-from product import ProductManager
-from customer import CustomerManager
-from employee import EmployeeManager
-from fin_and_stats import FinanceManager, StatManager
-from menu import Menu
-from dynamic_price import Dynamic_Price
+from .database import Database
+from .product import ProductManager
+from .customer import CustomerManager
+from .employee import EmployeeManager
+from .fin_and_stats import FinanceManager, StatManager
+from .menu import Menu
+from .dynamic_price import Dynamic_Price
 
 def main():
     """Main function to initialize and run the application."""

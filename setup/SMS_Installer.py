@@ -1,15 +1,23 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 import mysql.connector
+from mysql.connector import Error
 from datetime import date
 
-# ======================
-# Azure Flexible MySQL connection
-# ======================
-HOST = "kabilesh-sql.mysql.database.azure.com"
-PORT = 3306
-USER = "kabilesh"      # Admin user
-PASSWORD = "hehesike1!"              # Admin password
-DATABASE = "sms_database"
-SSL_CA = r"D:\SMS\DigiCertGlobalRootCA.crt.pem"
+# --------------------------
+# Load environment variables
+# --------------------------
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+HOST = os.getenv("HOST")
+PORT = int(os.getenv("PORT", "3306"))
+USER = os.getenv("USER")
+PASSWORD = os.getenv("PASSWORD")
+DATABASE = os.getenv("DATABASE")
+SSL_CA = os.getenv("SSL_CA")   # ✅ FIXED (was missing!)
+
 try:
     cnx = mysql.connector.connect(
         user=USER,
@@ -164,11 +172,11 @@ try:
 
     print("🎉 All data inserted successfully!")
 
-except mysql.connector.Error as err:
-    print(f"❌ Error: {err}")
+except Error as e:
+    print(f"❌ Connection failed: {e}")
 
 finally:
-    if 'cursor' in locals():
+    if 'cursor' in locals() and cursor:
         cursor.close()
     if 'cnx' in locals() and cnx.is_connected():
         cnx.close()
