@@ -63,7 +63,7 @@ def connect_db():
 # -----------------------------------------------------
 cnx = connect_db()
 if cnx:
-    if not sms_Installer.is_marked_installed() and not sms_installer.is_already_installed(cnx):
+    if not sms_Installer.is_marked_installed() and not sms_Installer.is_already_installed(cnx):
         print("🚀 Running installer for the first time...")
         sms_Installer.run_installer(cnx)
     else:
