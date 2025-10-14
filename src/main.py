@@ -55,6 +55,39 @@ def connect_db():
         print("✅ Successfully connected to MySQL!")
         return cnx
     except Error as e:
+        # If the database does not exist (ER_BAD_DB_ERROR / 1049), try to create it
+        try:
+            if getattr(e, 'errno', None) == 1049 or 'Unknown database' in str(e):
+                print(f"Database '{DATABASE}' not found. Attempting to create it...")
+                # Connect without specifying database
+                tmp = mysql.connector.connect(
+                    user=USER,
+                    password=PASSWORD,
+                    host=HOST,
+                    port=PORT,
+                    ssl_ca=SSL_CA if SSL_CA else None,
+                    ssl_disabled=(SSL_CA is None)
+                )
+                cur = tmp.cursor()
+                cur.execute(f"CREATE DATABASE IF NOT EXISTS `{DATABASE}`;")
+                tmp.commit()
+                cur.close()
+                tmp.close()
+                # Try connecting again, now that database should exist
+                cnx = mysql.connector.connect(
+                    user=USER,
+                    password=PASSWORD,
+                    host=HOST,
+                    port=PORT,
+                    database=DATABASE,
+                    ssl_ca=SSL_CA if SSL_CA else None,
+                    ssl_disabled=(SSL_CA is None)
+                )
+                cnx.autocommit = False
+                print(f"✅ Created and connected to database '{DATABASE}'.")
+                return cnx
+        except Exception as e2:
+            print(f"❌ Failed to create database '{DATABASE}': {e2}")
         print(f"❌ Connection failed: {e}")
         return None
 
@@ -63,11 +96,14 @@ def connect_db():
 # -----------------------------------------------------
 cnx = connect_db()
 if cnx:
-    if not sms_Installer.is_marked_installed() and not sms_Installer.is_already_installed(cnx):
-        print("🚀 Running installer for the first time...")
+    # Prefer actual database state over a filesystem marker. If tables are missing,
+    # run the installer to (re)create them. This handles cases where the marker
+    # file exists but the DB tables were not created or were deleted.
+    if not sms_Installer.is_already_installed(cnx):
+        print("🚀 Running installer to create missing tables...")
         sms_Installer.run_installer(cnx)
     else:
-        print("⚡ Installer already run. Skipping...")
+        print("⚡ Tables already exist. Skipping installer.")
     cnx.close()
 
 # -----------------------------------------------------
