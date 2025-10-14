@@ -1,16 +1,16 @@
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
-# Set working directory inside container
 WORKDIR /app
 
-# Copy all project files
-COPY . /app
+# Install runtime dependency
+RUN apk add --no-cache libffi
 
-# Install dependencies
+# Install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Make entrypoint script executable
-RUN chmod +x /app/entrypoint.sh
+# Copy application source and SSL cert
+COPY . /app
 
-# Default command uses the entrypoint script
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Default command
+CMD ["python", "-m", "src.main"]
